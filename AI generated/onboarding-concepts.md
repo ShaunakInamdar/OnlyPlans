@@ -88,3 +88,22 @@ After onboarding, the agent holds the full user profile plus a precise first tas
 | `timeframe` | Today, 9am – 11am |
 | `reminder_at` | 8:45am — 15 min before start |
 | `details` | Focus on the intro paragraph first. Don't touch the design yet. |
+
+---
+
+## Agent Goal
+
+The agent treats the first task as its own objective — not just something to track, but something it is actively trying to make happen. The agent's goal is:
+
+> **Get the user to complete their first task within the agreed timeframe.**
+
+This means the agent is not passive. It reminds before the task starts, checks in during it, and follows up after. It owns the outcome alongside the user.
+
+| Field | Example |
+|---|---|
+| `agent_goal` | User completes: "Write the About page" |
+| `success_condition` | User confirms task done within the timeframe |
+| `check_in_before` | 8:45am — reminder call/text to prepare |
+| `check_in_during` | 10am — mid-session check-in |
+| `check_in_after` | 11am — did you finish? what's left? |
+| `fallback_if_missed` | Reschedule or break into smaller step |
