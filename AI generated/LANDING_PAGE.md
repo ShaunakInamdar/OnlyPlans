@@ -28,7 +28,7 @@ Through a personalized onboarding (an interview, a game, or a reflection), Only 
 - 📅 **Calendar integration** — your tasks live alongside your real schedule
 - 🏆 **Reward system** — earn benefits as you complete tasks, scaled to how hard the task was
 - 🔔 **Deadline reminders** — never miss what matters, including the small stuff like birthdays and taxes
-- 🗂️ **Clear overview** — always know what your most important task is, right now
+- 🗂️ **Clear overview** — always know what your most important task is, right now.
 
 ### Who It's For
 Only Plans is for anyone who wants to stop losing time and start achieving their goals:
