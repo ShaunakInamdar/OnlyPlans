@@ -17,6 +17,7 @@ import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { Phone, Send } from 'lucide-react'
 import { getMessages, sendMessage, subscribeToMessages } from '../api/services/messages'
+import { on } from '../utils/messageBus'
 
 // ─── Call status display config ───────────────────────────────────────────────
 // Maps user_status from the calls table to a badge label + colours.
@@ -183,18 +184,14 @@ export default function ChatScreen() {
 
   // ── Listen for messages sent via the VoiceButton ────────────────────────────
   // VoiceButton lives outside ChatScreen in App.jsx (so it's visible on every
-  // screen). When the user sends a voice message it fires a DOM CustomEvent
-  // 'voiceMessage' with the new Message object in event.detail.
-  // This handler appends it to the local list — same as typing and sending.
-  // When a real backend is in place this still works: Supabase Realtime will
-  // push the agent reply; this handler covers the user's own sent message.
-  useEffect(() => {
-    const handleVoiceMessage = (e) => {
-      setMessages((prev) => [...prev, e.detail])
-    }
-    window.addEventListener('voiceMessage', handleVoiceMessage)
-    return () => window.removeEventListener('voiceMessage', handleVoiceMessage)
-  }, [])
+  // screen). When the user sends a voice message it calls emit('voiceMessage')
+  // on the shared messageBus module. The unsubscribe fn returned by on() is
+  // used as the useEffect cleanup so we never leak listeners.
+  // When a real backend is in place, remove this block — Supabase Realtime
+  // will push the user's sent message back via the postgres_changes subscription.
+  useEffect(() => on('voiceMessage', (msg) => {
+    setMessages((prev) => [...prev, msg])
+  }), [])
 
   // ── Scroll to bottom whenever messages change ───────────────────────────────
   useEffect(() => {

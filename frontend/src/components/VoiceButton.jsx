@@ -23,6 +23,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Mic, MicOff, X } from 'lucide-react'
 import { sendMessage } from '../api/services/messages'
+import { emit } from '../utils/messageBus'
 
 export default function VoiceButton() {
   const [listening,   setListening]   = useState(false)
@@ -82,8 +83,10 @@ export default function VoiceButton() {
     try {
       const { message } = await sendMessage(text)
       setTranscript('')
-      // Broadcast the new message so ChatScreen can add it to its list
-      window.dispatchEvent(new CustomEvent('voiceMessage', { detail: message }))
+      // Notify ChatScreen via the shared module-level message bus.
+      // More reliable than window events — same JS module instance,
+      // no serialisation, no timing races with React mount order.
+      emit('voiceMessage', message)
     } finally {
       setSending(false)
     }
