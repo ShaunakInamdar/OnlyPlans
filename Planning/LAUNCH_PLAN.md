@@ -9,7 +9,7 @@
 | | |
 |---|---|
 | **❓ Problem** | People — especially those with ADHD or undiagnosed attention struggles — have too many tasks, no clear priorities, fall into rabbit holes, and end the week having achieved nothing. Existing tools (Notion, Todoist, etc.) are passive. They wait for you to open them. Nobody calls you back. |
-| **👤 Audience** | Freelancers, solo workers, and individuals aged 20–40 who are self-aware about their focus struggles — diagnosed ADHD/ADD or undiagnosed spectrum. They've tried apps before. They want a solution that meets them where they are, not one that adds another thing to manage. |
+| **👤 Audience** | Individuals aged 20–40 who are self-aware about their focus struggles — diagnosed ADHD/ADD or undiagnosed spectrum. They've tried apps before. They want a solution that meets them where they are, not one that adds another thing to manage. |
 | **💡 Solution** | An AI agent that understands how you think (via onboarding), proactively calls you throughout the day to keep you on track, breaks your goals into manageable steps, and adapts its motivation style to what actually works for you — rewards, accountability, or both. |
 
 ---
