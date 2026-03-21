@@ -26,6 +26,7 @@
  */
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { getMessages, sendMessage, subscribeToMessages } from '../api/services/messages'
+import { supabase, getUserId } from '../api/supabase'
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 
@@ -48,7 +49,7 @@ export function MessagesProvider({ children }) {
   // Real-time subscription — agent replies and incoming call records
   // API: Supabase Realtime postgres_changes on messages table
   useEffect(() => {
-    const unsubscribe = subscribeToMessages((newMsg) => {
+    const unsubscribe = subscribeToMessages(supabase, getUserId(), (newMsg) => {
       setMessages((prev) => [...prev, newMsg])
     })
     return unsubscribe
