@@ -9,17 +9,19 @@ Extracted and consolidated from all four pitches (Shaunak, Oliver, Eugene, Ramon
 - Optional puzzle/game format to map the user's thinking style and working patterns
 - AI learns and adapts to the user's individual needs over time
 - Personalized motivation style: user chooses reward-based, consequence-based, or call-based accountability
+- Building a user profile or a mindprint. 
 
 ## ✅ Task & Goal Management
 - Task board for tracking goals, tasks, and deadlines
 - Breakdown of large tasks into small, actionable subtasks
 - Priority setting — helps users identify what matters most
-- Side-task management (e.g. household chores, taxes, birthday prep)
+- Management of all life tasks, including things like household chores, taxes, and birthday preparation
 - Self-imposed deadline tracking and management
 
 ## 📅 Calendar & Scheduling
 - Calendar integration for syncing tasks and deadlines
 - Intelligent scheduling of tasks throughout the day/week
+- Reprioritization of tasks based on the user's preferences and the importance of the task. 
 
 ## 📞 Proactive Accountability (Call Agent)
 - AI agent calls the user multiple times per day
@@ -29,7 +31,7 @@ Extracted and consolidated from all four pitches (Shaunak, Oliver, Eugene, Ramon
 - Configurable call frequency based on user preference
 
 ## 🔔 Reminders & Follow-ups
-- Smart reminders for upcoming deadlines
+- Smart reminders for upcoming deadlines. Gamified rewards for completing tasks on time.
 - Follow-up system to ensure tasks don't fall through the cracks
 - Prevents important side tasks from being forgotten
 
@@ -43,6 +45,7 @@ Extracted and consolidated from all four pitches (Shaunak, Oliver, Eugene, Ramon
 - Simple, clear dashboard showing all tasks, priorities, and progress
 - Big-picture view to prevent losing sight of overall goals
 - Helps users answer: "What is the most important thing right now?"
+- Progress tracking and visualization of completed tasks that helps users stay motivated and focused.
 
 ## 🎯 Target Audience
 - People with ADHD/ADD (diagnosed or undiagnosed)
