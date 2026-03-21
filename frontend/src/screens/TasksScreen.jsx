@@ -204,9 +204,11 @@ function TaskDetail({ task, onClose, onTaskUpdate }) {
 
 export default function TasksScreen() {
   // tasks: Task[] — all tasks for the user, sorted by due_order
-  const [tasks, setTasks]     = useState([])
-  const [loading, setLoading] = useState(true)
+  const [tasks, setTasks]       = useState([])
+  const [loading, setLoading]   = useState(true)
   const [selected, setSelected] = useState(null)
+  // toggling: Set of task IDs currently being saved — prevents double-tap
+  const [toggling, setToggling] = useState(new Set())
 
   // ── Load tasks on mount ─────────────────────────────────────────────────────
   // API: GET /rest/v1/tasks?user_id=eq.{id}&select=*,subtasks(*)&order=due_order.asc
@@ -219,6 +221,30 @@ export default function TasksScreen() {
   // ── Receive updated task from detail panel ──────────────────────────────────
   const handleTaskUpdate = (updatedTask) => {
     setTasks((prev) => prev.map((t) => (t.id === updatedTask.id ? updatedTask : t)))
+  }
+
+  // ── Toggle task done/todo directly from the circle button ───────────────────
+  // API: PATCH /rest/v1/tasks?id=eq.{taskId}  { status: 'done' | 'todo' }
+  // Uses optimistic UI: flips locally first, rolls back on error.
+  const handleCircleToggle = async (e, task) => {
+    e.stopPropagation() // don't open detail panel
+    if (toggling.has(task.id)) return
+
+    const newStatus = task.status === 'done' ? 'todo' : 'done'
+
+    // Optimistic update
+    setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, status: newStatus } : t)))
+    setToggling((prev) => new Set(prev).add(task.id))
+
+    try {
+      const { task: updated } = await updateTask(task.id, { status: newStatus })
+      setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))
+    } catch {
+      // Rollback on error
+      setTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)))
+    } finally {
+      setToggling((prev) => { const s = new Set(prev); s.delete(task.id); return s })
+    }
   }
 
   // ── Group tasks by due_order ────────────────────────────────────────────────
@@ -259,35 +285,54 @@ export default function TasksScreen() {
 
               <div className="space-y-2">
                 {section.tasks.map((task) => (
-                  <button
+                  <div
                     key={task.id}
-                    onClick={() => setSelected(task)}
-                    className="w-full rounded-2xl px-4 py-3.5 flex items-center gap-3 text-left shadow-sm border active:scale-[0.98] transition-transform"
+                    className="w-full rounded-2xl px-4 py-3.5 flex items-center gap-3 shadow-sm border"
                     style={{ background: '#fff', borderColor: '#D0BFA5' }}
                   >
-                    {task.status === 'done'
-                      ? <CheckCircle2 size={20} className="shrink-0" style={{ color: '#2A9D6B' }} />
-                      : <Circle size={20} className="shrink-0" style={{ color: '#D0BFA5' }} />}
-                    <div className="flex-1 min-w-0">
-                      {/* task.title — from tasks table */}
-                      <p className="text-sm font-medium truncate"
-                        style={{
-                          color: task.status === 'done' ? '#6B7A7F' : '#023544',
-                          textDecoration: task.status === 'done' ? 'line-through' : 'none',
-                        }}>
-                        {task.title}
-                      </p>
-                      {/* task.due + task.goal — due is a human label; goal is the category */}
-                      <p className="text-xs mt-0.5 flex items-center gap-1" style={{ color: '#6B7A7F' }}>
-                        <Clock size={10} /> {task.due}
-                        <span className="opacity-60">· {task.goal}</span>
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <StatusBadge status={task.status} />
-                      <ChevronRight size={15} style={{ color: '#D0BFA5' }} />
-                    </div>
-                  </button>
+                    {/*
+                      ── Checkable circle ────────────────────────────────────
+                      Tapping this circle directly marks the task done/todo.
+                      API: PATCH /rest/v1/tasks?id=eq.{taskId} { status: '...' }
+                      Does NOT open the detail panel.
+                    */}
+                    <button
+                      onClick={(e) => handleCircleToggle(e, task)}
+                      disabled={toggling.has(task.id)}
+                      className="shrink-0 transition-transform active:scale-90"
+                      aria-label={task.status === 'done' ? 'Mark as to-do' : 'Mark as done'}
+                    >
+                      {task.status === 'done'
+                        ? <CheckCircle2 size={22} style={{ color: '#2A9D6B' }} />
+                        : <Circle size={22} style={{ color: '#D0BFA5' }} />}
+                    </button>
+
+                    {/* Row content — tapping here opens the detail panel */}
+                    <button
+                      onClick={() => setSelected(task)}
+                      className="flex-1 min-w-0 flex items-center gap-2 text-left active:scale-[0.98] transition-transform"
+                    >
+                      <div className="flex-1 min-w-0">
+                        {/* task.title — from tasks table */}
+                        <p className="text-sm font-medium truncate"
+                          style={{
+                            color: task.status === 'done' ? '#6B7A7F' : '#023544',
+                            textDecoration: task.status === 'done' ? 'line-through' : 'none',
+                          }}>
+                          {task.title}
+                        </p>
+                        {/* task.due + task.goal — due is a human label; goal is the category */}
+                        <p className="text-xs mt-0.5 flex items-center gap-1" style={{ color: '#6B7A7F' }}>
+                          <Clock size={10} /> {task.due}
+                          <span className="opacity-60">· {task.goal}</span>
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <StatusBadge status={task.status} />
+                        <ChevronRight size={15} style={{ color: '#D0BFA5' }} />
+                      </div>
+                    </button>
+                  </div>
                 ))}
               </div>
             </div>
