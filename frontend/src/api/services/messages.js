@@ -146,7 +146,8 @@ export async function getMessages({ limit = 50, cursor = null } = {}) {
   }
 
   // join calls table; task_title is denormalised on calls so no second join needed
-  let path = `/rest/v1/messages?user_id=eq.me&select=*,calls(*)&order=created_at.asc&limit=${limit}`
+  // No user_id filter needed — RLS policy enforces user_id = auth.uid() automatically
+  let path = `/rest/v1/messages?select=*,calls(*)&order=created_at.asc&limit=${limit}`
   if (cursor) path += `&created_at=gt.${encodeURIComponent(cursor)}`
 
   const rows = await apiFetch(path)
