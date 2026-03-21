@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<!--
+  OnlyPlans — Sign-Up Page
+  ────────────────────────
+  Source: /AI generated/user-journey.md §1 Signup
+
+  Single-page form: Name · Email · Phone Number
+  After submit → SMS verification step (inline)
+
+  API TOUCHPOINTS:
+    MockAPI.signUp(name, email, phone)  →  POST /auth/signup
+    MockAPI.verifyPhone(phone, code)    →  POST /auth/verify-phone
+    MockAPI.resendCode(phone)           →  POST /auth/resend-code
+
+  Supabase tables:
+    auth.users            ← Supabase Auth creates automatically
+    profiles              ← DB trigger handle_new_user()
+    phone_verifications   ← OTP tracking
+
+  See AGENTS.md for full backend specification.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign Up — OnlyPlans</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:      #F9F4E8;
+      --bg2:     #E8D8C3;
+      --card:    #FFFFFF;
+      --border:  #D0BFA5;
+      --accent:  #B12A42;
+      --accent2: #0D3C4B;
+      --heading: #023544;
+      --text:    #1A1A1A;
+      --muted:   #6B7A7F;
+      --green:   #2A9D6B;
+    }
+
+    h1, h2, h3, h4 { color: var(--heading); }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Nav ── */
+    nav {
+      padding: 20px 40px;
+      display: flex;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .nav-logo {
+      font-weight: 800;
+      font-size: 1rem;
+      color: var(--heading);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+    }
+    .nav-logo-icon {
+      width: 26px; height: 26px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.8rem; color: #fff;
+    }
+
+    /* ── Layout ── */
+    .page {
+      flex: 1;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 60px 24px 80px;
+    }
+
+    .signup-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 48px 44px;
+      width: 100%;
+      max-width: 460px;
+      box-shadow: 0 4px 32px rgba(2,53,68,0.07);
+    }
+
+    /* ── Header ── */
+    .step-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 10px;
+      display: block;
+    }
+    .card-title {
+      font-size: 1.6rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      line-height: 1.2;
+      margin-bottom: 8px;
+    }
+    .card-sub {
+      font-size: 0.9rem;
+      color: var(--muted);
+      line-height: 1.65;
+      margin-bottom: 32px;
+    }
+
+    /* ── Fields ── */
+    .field { margin-bottom: 18px; }
+    .field label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--heading);
+      margin-bottom: 7px;
+    }
+    .field input {
+      width: 100%;
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 13px 16px;
+      font-size: 1rem;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      font-family: inherit;
+    }
+    .field input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(177,42,66,0.1);
+    }
+    .field input.error {
+      border-color: var(--accent);
+    }
+    .field-error {
+      font-size: 0.78rem;
+      color: var(--accent);
+      margin-top: 5px;
+      display: none;
+    }
+
+    /* ── Phone row ── */
+    .phone-row { display: flex; gap: 8px; }
+    .phone-prefix {
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 13px 12px;
+      font-size: 0.9rem;
+      color: var(--text);
+      outline: none;
+      font-family: inherit;
+      cursor: pointer;
+      min-width: 86px;
+      transition: border-color 0.2s;
+    }
+    .phone-prefix:focus { border-color: var(--accent); }
+    .phone-row input { flex: 1; }
+
+    /* ── Why phone info box ── */
+    .info-box {
+      background: rgba(2,53,68,0.05);
+      border: 1px solid rgba(2,53,68,0.12);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 0.8rem;
+      color: var(--heading);
+      line-height: 1.6;
+      margin-top: 8px;
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+    }
+
+    /* ── Global error ── */
+    .global-error {
+      background: rgba(177,42,66,0.08);
+      border: 1px solid rgba(177,42,66,0.2);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 0.85rem;
+      color: var(--accent);
+      margin-bottom: 18px;
+      display: none;
+    }
+
+    /* ── Button ── */
+    .btn-primary {
+      width: 100%;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 15px;
+      font-size: 1rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn-primary:hover:not(:disabled) { background: var(--accent2); transform: translateY(-1px); }
+    .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2.5px solid rgba(255,255,255,0.35);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Legal ── */
+    .legal {
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-align: center;
+      margin-top: 16px;
+      line-height: 1.6;
+    }
+    .legal a { color: var(--muted); text-decoration: underline; }
+
+    .signup-footer {
+      text-align: center;
+      margin-top: 22px;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+    .signup-footer a { color: var(--accent); text-decoration: none; font-weight: 600; }
+
+    /* ── SMS Verification (shown after submit) ── */
+    #verifyPanel { display: none; }
+
+    .code-row {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin: 24px 0 8px;
+    }
+    .code-digit {
+      width: 52px; height: 62px;
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      font-size: 1.6rem;
+      font-weight: 700;
+      text-align: center;
+      color: var(--heading);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      font-family: inherit;
+    }
+    .code-digit:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(177,42,66,0.1); }
+    .code-digit.filled { border-color: var(--accent2); }
+
+    .resend-row {
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+    .resend-btn {
+      background: none; border: none;
+      color: var(--accent); font-weight: 600;
+      cursor: pointer; font-size: 0.85rem;
+      font-family: inherit; padding: 0;
+    }
+    .resend-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .back-link {
+      background: none; border: none;
+      color: var(--muted); font-size: 0.85rem;
+      font-family: inherit; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 4px;
+      margin-bottom: 20px; padding: 0;
+    }
+    .back-link:hover { color: var(--heading); }
+
+    /* ── Success ── */
+    #successPanel {
+      display: none;
+      text-align: center;
+    }
+    .success-icon {
+      width: 72px; height: 72px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2rem; color: #fff;
+      margin: 0 auto 24px;
+    }
+
+    @media (max-width: 520px) {
+      .signup-card { padding: 32px 22px; }
+      nav { padding: 16px 20px; }
+      .code-digit { width: 44px; height: 54px; font-size: 1.3rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="index_v6_en.html" class="nav-logo">
+      <div class="nav-logo-icon">✓</div>
+      OnlyPlans
+    </a>
+  </nav>
+
+  <div class="page">
+    <div class="signup-card">
+
+      <!-- ── SIGN-UP FORM ── -->
+      <!--
+        All three fields collected on one screen.
+        On submit → MockAPI.signUp() → show SMS verification panel.
+      -->
+      <div id="signupPanel">
+        <span class="step-label">Get Started</span>
+        <h2 class="card-title">Create your account.</h2>
+        <p class="card-sub">No password needed. We'll verify your number and call you from there.</p>
+
+        <div class="global-error" id="formError"></div>
+
+        <!-- Name — stored in profiles.display_name -->
+        <div class="field">
+          <label for="nameInput">First name</label>
+          <input type="text" id="nameInput" placeholder="Ramona" autocomplete="given-name" />
+          <div class="field-error" id="nameError">Please enter your name.</div>
+        </div>
+
+        <!-- Email — stored in auth.users + profiles -->
+        <div class="field">
+          <label for="emailInput">Email address</label>
+          <input type="email" id="emailInput" placeholder="you@example.com" autocomplete="email" />
+          <div class="field-error" id="emailError">Please enter a valid email address.</div>
+        </div>
+
+        <!-- Password — stored in auth.users via Supabase Auth -->
+        <div class="field">
+          <label for="passwordInput">Password</label>
+          <div style="position:relative;">
+            <input type="password" id="passwordInput" placeholder="Min. 8 characters" autocomplete="new-password" style="padding-right: 44px;" />
+            <button type="button" onclick="togglePassword()" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:var(--muted); font-size:1rem; padding:0; line-height:1;" id="toggleBtn">👁</button>
+          </div>
+          <div class="field-error" id="passwordError">Password must be at least 8 characters.</div>
+        </div>
+
+        <!--
+          Phone — PRIMARY channel for AI accountability calls
+          Required per user-journey.md §1:
+          "Phone number is required — this is the channel the AI agent uses to reach them"
+          Stored in profiles.phone, verified via phone_verifications table.
+        -->
+        <div class="field">
+          <label for="phoneInput">Phone number</label>
+          <div class="phone-row">
+            <select class="phone-prefix" id="dialCode">
+              <option value="+1">🇺🇸 +1</option>
+              <option value="+44">🇬🇧 +44</option>
+              <option value="+49" selected>🇩🇪 +49</option>
+              <option value="+33">🇫🇷 +33</option>
+              <option value="+34">🇪🇸 +34</option>
+              <option value="+39">🇮🇹 +39</option>
+              <option value="+31">🇳🇱 +31</option>
+              <option value="+41">🇨🇭 +41</option>
+              <option value="+43">🇦🇹 +43</option>
+              <option value="+61">🇦🇺 +61</option>
+            </select>
+            <input type="tel" id="phoneInput" placeholder="170 1234567" autocomplete="tel-national" />
+          </div>
+          <div class="field-error" id="phoneError">Please enter a valid phone number.</div>
+          <div class="info-box">
+            <span>📞</span>
+            <span>OnlyPlans calls you — that's the whole point. Your number is only ever used for accountability calls, never shared.</span>
+          </div>
+        </div>
+
+        <button class="btn-primary" id="signupBtn" onclick="handleSignup()">
+          <span id="signupBtnText">Create Account</span>
+          <div class="spinner" id="signupSpinner"></div>
+        </button>
+
+        <div class="legal">
+          By signing up you agree to receive calls and SMS from OnlyPlans.<br>
+          <a href="#">Privacy Policy</a> · <a href="#">Terms of Service</a>
+        </div>
+
+        <div class="signup-footer">
+          Already have an account? <a href="#">Log in</a>
+        </div>
+      </div>
+
+      <!-- ── SMS VERIFICATION ── -->
+      <!--
+        API:    POST /auth/verify-phone  →  MockAPI.verifyPhone(phone, code)
+        Table:  phone_verifications — UPDATE verified=true
+                profiles            — UPDATE phone_verified=true
+        REAL:   supabase.auth.verifyOtp({ phone, token: code, type: 'sms' })
+      -->
+      <div id="verifyPanel">
+        <button class="back-link" onclick="showSignupPanel()">← Back</button>
+        <span class="step-label">Verify your number</span>
+        <h2 class="card-title">Check your phone.</h2>
+        <p class="card-sub">We sent a 6-digit code to <strong id="phoneSent"></strong></p>
+
+        <div class="global-error" id="verifyError"></div>
+
+        <div class="code-row" id="codeRow">
+          <input class="code-digit" maxlength="1" type="text" inputmode="numeric" id="d0" />
+          <input class="code-digit" maxlength="1" type="text" inputmode="numeric" id="d1" />
+          <input class="code-digit" maxlength="1" type="text" inputmode="numeric" id="d2" />
+          <input class="code-digit" maxlength="1" type="text" inputmode="numeric" id="d3" />
+          <input class="code-digit" maxlength="1" type="text" inputmode="numeric" id="d4" />
+          <input class="code-digit" maxlength="1" type="text" inputmode="numeric" id="d5" />
+        </div>
+
+        <div class="resend-row">
+          Didn't get it?
+          <button class="resend-btn" id="resendBtn" onclick="resendCode()">Resend</button>
+          <span id="resendTimer" style="display:none;"> in <span id="timerCount">30</span>s</span>
+        </div>
+
+        <button class="btn-primary" id="verifyBtn" onclick="verifyCode()">
+          <span id="verifyBtnText">Verify</span>
+          <div class="spinner" id="verifySpinner"></div>
+        </button>
+      </div>
+
+      <!-- ── SUCCESS ── -->
+      <div id="successPanel">
+        <div class="success-icon">✓</div>
+        <h2 class="card-title">You're in, <span id="successName"></span>!</h2>
+        <p class="card-sub" style="margin-bottom: 28px;">Your account is ready. Let's set up your first goal — our AI will guide you through a short call.</p>
+        <button class="btn-primary" onclick="goToOnboarding()">Start Onboarding →</button>
+        <div class="legal" style="margin-top: 14px;">Your first call is free. No credit card needed.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // ─────────────────────────────────────────────────────────────────────────
+    // MockAPI
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const MockAPI = {
+      _delay: (ms = 700) => new Promise(r => setTimeout(r, ms)),
+
+      // POST /auth/signup
+      // Tables: auth.users, profiles (via trigger), phone_verifications
+      // REAL: await supabase.auth.signUp({ email, password,
+      //         options: { data: { display_name: name, phone } } })
+      //       await supabase.auth.signInWithOtp({ phone })
+      async signUp(name, email, password, phone) {
+        await this._delay();
+        if (email.includes('@taken.com')) {
+          return { success: false, error: 'email_taken', message: 'This email is already registered.' };
+        }
+        console.log(`[MockAPI] SMS OTP sent to ${phone} — mock code: 123456`);
+        return { success: true, user_id: 'mock-' + Date.now() };
+      },
+
+      // POST /auth/verify-phone
+      // Table: phone_verifications (UPDATE verified=true), profiles (UPDATE phone_verified=true)
+      // REAL: await supabase.auth.verifyOtp({ phone, token: code, type: 'sms' })
+      async verifyPhone(phone, code) {
+        await this._delay(900);
+        if (code === '123456') return { success: true };
+        return { success: false, message: 'Incorrect code. Please try again.' };
+      },
+
+      // POST /auth/resend-code
+      // REAL: await supabase.auth.signInWithOtp({ phone })
+      async resendCode(phone) {
+        await this._delay(500);
+        console.log(`[MockAPI] OTP resent to ${phone}`);
+        return { success: true };
+      }
+    };
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // State
+    // ─────────────────────────────────────────────────────────────────────────
+    const state = { name: '', email: '', fullPhone: '' };
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Sign-Up Submit
+    // ─────────────────────────────────────────────────────────────────────────
+    async function handleSignup() {
+      clearErrors();
+
+      const name     = document.getElementById('nameInput').value.trim();
+      const email    = document.getElementById('emailInput').value.trim();
+      const password = document.getElementById('passwordInput').value;
+      const phone    = document.getElementById('phoneInput').value.trim().replace(/\s/g, '');
+      const dial     = document.getElementById('dialCode').value;
+
+      let valid = true;
+      if (!name)  { showFieldError('nameInput',  'nameError',  'Please enter your name.');            valid = false; }
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+                  { showFieldError('emailInput', 'emailError', 'Please enter a valid email.');        valid = false; }
+      if (!password || password.length < 8)
+                  { showFieldError('passwordInput', 'passwordError', 'Password must be at least 8 characters.'); valid = false; }
+      if (!phone || phone.length < 7)
+                  { showFieldError('phoneInput', 'phoneError', 'Please enter a valid phone number.'); valid = false; }
+      if (!valid) return;
+
+      state.name      = name;
+      state.email     = email;
+      state.fullPhone = dial + phone;
+
+      setLoading('signup', true);
+
+      try {
+        const result = await MockAPI.signUp(name, email, password, state.fullPhone);
+        if (!result.success) {
+          showGlobalError('formError', result.message);
+          return;
+        }
+        showVerifyPanel();
+      } catch (err) {
+        showGlobalError('formError', 'Something went wrong. Please try again.');
+      } finally {
+        setLoading('signup', false);
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Panel switching
+    // ─────────────────────────────────────────────────────────────────────────
+    function showVerifyPanel() {
+      document.getElementById('signupPanel').style.display = 'none';
+      document.getElementById('verifyPanel').style.display = 'block';
+      document.getElementById('phoneSent').textContent = state.fullPhone;
+      initCodeInputs();
+      startResendTimer();
+    }
+
+    function showSignupPanel() {
+      document.getElementById('verifyPanel').style.display = 'none';
+      document.getElementById('signupPanel').style.display = 'block';
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Verify Code
+    // ─────────────────────────────────────────────────────────────────────────
+    async function verifyCode() {
+      const code = [0,1,2,3,4,5].map(i => document.getElementById('d'+i).value).join('');
+      document.getElementById('verifyError').style.display = 'none';
+
+      if (code.length < 6) {
+        showGlobalError('verifyError', 'Please enter all 6 digits.');
+        return;
+      }
+
+      setLoading('verify', true);
+      try {
+        const result = await MockAPI.verifyPhone(state.fullPhone, code);
+        if (!result.success) {
+          showGlobalError('verifyError', result.message);
+          [0,1,2,3,4,5].forEach(i => { document.getElementById('d'+i).value = ''; document.getElementById('d'+i).classList.remove('filled'); });
+          document.getElementById('d0').focus();
+          return;
+        }
+        // Success
+        document.getElementById('verifyPanel').style.display  = 'none';
+        document.getElementById('successPanel').style.display = 'block';
+        document.getElementById('successName').textContent    = state.name;
+      } catch (err) {
+        showGlobalError('verifyError', 'Verification failed. Please try again.');
+      } finally {
+        setLoading('verify', false);
+      }
+    }
+
+    async function resendCode() {
+      document.getElementById('resendBtn').disabled = true;
+      document.getElementById('verifyError').style.display = 'none';
+      try {
+        await MockAPI.resendCode(state.fullPhone);
+        startResendTimer();
+      } catch {
+        document.getElementById('resendBtn').disabled = false;
+      }
+    }
+
+    function startResendTimer() {
+      let s = 30;
+      const btn = document.getElementById('resendBtn');
+      const timer = document.getElementById('resendTimer');
+      const count = document.getElementById('timerCount');
+      btn.disabled = true;
+      timer.style.display = 'inline';
+      count.textContent = s;
+      const iv = setInterval(() => {
+        s--;
+        count.textContent = s;
+        if (s <= 0) { clearInterval(iv); btn.disabled = false; timer.style.display = 'none'; }
+      }, 1000);
+    }
+
+    function initCodeInputs() {
+      const digits = [0,1,2,3,4,5].map(i => document.getElementById('d'+i));
+      digits.forEach((el, idx) => {
+        el.value = '';
+        el.classList.remove('filled');
+        el.oninput = () => {
+          el.value = el.value.replace(/\D/g, '').slice(-1);
+          if (el.value) { el.classList.add('filled'); if (idx < 5) digits[idx+1].focus(); else verifyCode(); }
+          else el.classList.remove('filled');
+        };
+        el.onkeydown = e => { if (e.key === 'Backspace' && !el.value && idx > 0) digits[idx-1].focus(); };
+        el.onpaste = e => {
+          e.preventDefault();
+          const p = (e.clipboardData||window.clipboardData).getData('text').replace(/\D/g,'').slice(0,6);
+          p.split('').forEach((ch,i) => { if (digits[i]) { digits[i].value=ch; digits[i].classList.add('filled'); } });
+          if (p.length===6) verifyCode(); else if (digits[p.length]) digits[p.length].focus();
+        };
+      });
+      digits[0].focus();
+    }
+
+    function togglePassword() {
+      const input = document.getElementById('passwordInput');
+      const btn   = document.getElementById('toggleBtn');
+      if (input.type === 'password') { input.type = 'text';     btn.textContent = '🙈'; }
+      else                           { input.type = 'password'; btn.textContent = '👁'; }
+    }
+
+    function goToOnboarding() {
+      alert('Onboarding coming soon!\nOnlyPlans will call ' + state.fullPhone + ' to set up your first goal.');
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Helpers
+    // ─────────────────────────────────────────────────────────────────────────
+    function setLoading(id, on) {
+      document.getElementById(id+'Btn').disabled      = on;
+      document.getElementById(id+'Spinner').style.display = on ? 'block' : 'none';
+      document.getElementById(id+'BtnText').style.opacity = on ? '0' : '1';
+    }
+    function showFieldError(inputId, errorId, msg) {
+      document.getElementById(inputId).classList.add('error');
+      const el = document.getElementById(errorId);
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+    function showGlobalError(id, msg) {
+      const el = document.getElementById(id);
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+    function clearErrors() {
+      document.querySelectorAll('.field-error').forEach(e => e.style.display='none');
+      document.querySelectorAll('input').forEach(e => e.classList.remove('error'));
+      document.getElementById('formError').style.display = 'none';
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && document.getElementById('signupPanel').style.display !== 'none') handleSignup();
+    });
+  </script>
+</body>
+</html>
