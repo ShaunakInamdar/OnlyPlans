@@ -66,6 +66,69 @@ import { API_CONFIG } from '../config'
 import { apiFetch } from '../client'
 import { delay, getMockMessages, addMockMessage } from '../mock/db'
 
+// ─── transformMessage ─────────────────────────────────────────────────────────
+
+/**
+ * Transforms a raw Supabase row into the shape the frontend expects.
+ *
+ * Supabase PostgREST returns:
+ *   - snake_case field names
+ *   - joined calls as a nested array: msg.calls = [{ id, follow_up, task_title, ... }]
+ *
+ * The frontend expects:
+ *   - msg.date / msg.time  computed from created_at
+ *   - For kind='call': flattened fields: call_id, duration, task, followUp, etc.
+ */
+function transformMessage(raw) {
+  const createdAt = new Date(raw.created_at)
+  const today     = new Date()
+  const yesterday = new Date(today)
+  yesterday.setDate(today.getDate() - 1)
+
+  const isSameDay = (a, b) =>
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth()    === b.getMonth()    &&
+    a.getDate()     === b.getDate()
+
+  let dateLabel
+  if (isSameDay(createdAt, today)) {
+    dateLabel = 'Today'
+  } else if (isSameDay(createdAt, yesterday)) {
+    dateLabel = 'Yesterday'
+  } else {
+    dateLabel = createdAt.toLocaleDateString('en-GB', { weekday: 'long' })
+  }
+
+  const timeLabel = createdAt.toLocaleTimeString('en-GB', {
+    hour:   '2-digit',
+    minute: '2-digit',
+  })
+
+  const base = {
+    ...raw,
+    date: dateLabel,
+    time: timeLabel,
+    calls: undefined,  // remove nested array from output
+  }
+
+  // For call messages: flatten the first calls row onto the message
+  if (raw.kind === 'call' && Array.isArray(raw.calls) && raw.calls.length > 0) {
+    const call = raw.calls[0]
+    return {
+      ...base,
+      call_id:     call.id,
+      duration:    call.duration,
+      task_id:     call.task_id,
+      task:        call.task_title,   // denormalised title stored at call time
+      user_status: call.user_status,
+      summary:     call.summary,
+      followUp:    call.follow_up,    // snake_case → camelCase
+    }
+  }
+
+  return base
+}
+
 // ─── getMessages ──────────────────────────────────────────────────────────────
 
 /**
@@ -82,10 +145,12 @@ export async function getMessages({ limit = 50, cursor = null } = {}) {
     return { messages: getMockMessages() }
   }
 
-  // Real: join calls table so call metadata comes back in one request
+  // join calls table; task_title is denormalised on calls so no second join needed
   let path = `/rest/v1/messages?user_id=eq.me&select=*,calls(*)&order=created_at.asc&limit=${limit}`
   if (cursor) path += `&created_at=gt.${encodeURIComponent(cursor)}`
-  return apiFetch(path)
+
+  const rows = await apiFetch(path)
+  return { messages: rows.map(transformMessage) }
 }
 
 // ─── sendMessage ──────────────────────────────────────────────────────────────
@@ -107,8 +172,9 @@ export async function sendMessage(text) {
     return { message }
   }
 
-  return apiFetch('/rest/v1/messages', {
+  const row = await apiFetch('/rest/v1/messages', {
     method: 'POST',
+    headers: { Prefer: 'return=representation' },
     body: JSON.stringify({
       type: 'user',
       kind: 'text',
@@ -116,6 +182,9 @@ export async function sendMessage(text) {
       created_at: new Date().toISOString(),
     }),
   })
+  // Supabase returns an array for POST with return=representation
+  const inserted = Array.isArray(row) ? row[0] : row
+  return { message: transformMessage(inserted) }
 }
 
 // ─── subscribeToMessages ──────────────────────────────────────────────────────
@@ -139,14 +208,48 @@ export async function sendMessage(text) {
  * @param {function} callback - called with each new Message
  * @returns {function} unsubscribe
  */
-export function subscribeToMessages(callback) {
+export function subscribeToMessages(supabaseClient, userId, callback) {
   if (API_CONFIG.USE_MOCK) {
     // Mock: no real-time — agent replies are not simulated
     return () => {}
   }
 
-  // Real: wire up Supabase Realtime channel here
-  // See AGENTS.md §Real-time for full implementation
-  console.warn('subscribeToMessages: real-time not yet connected')
-  return () => {}
+  if (!supabaseClient) {
+    console.warn('subscribeToMessages: no supabase client provided')
+    return () => {}
+  }
+
+  // Subscribe to new rows on the messages table for this user.
+  // New agent messages and call record cards arrive here in real-time.
+  const channel = supabaseClient
+    .channel('messages')
+    .on(
+      'postgres_changes',
+      {
+        event:  'INSERT',
+        schema: 'public',
+        table:  'messages',
+        filter: `user_id=eq.${userId}`,
+      },
+      async (payload) => {
+        const raw = payload.new
+
+        // For call messages, fetch the linked calls row so we can flatten it
+        if (raw.kind === 'call') {
+          const callRows = await supabaseClient
+            .from('calls')
+            .select('*')
+            .eq('message_id', raw.id)
+            .limit(1)
+          raw.calls = callRows.data || []
+        } else {
+          raw.calls = []
+        }
+
+        callback(transformMessage(raw))
+      }
+    )
+    .subscribe()
+
+  return () => supabaseClient.removeChannel(channel)
 }
