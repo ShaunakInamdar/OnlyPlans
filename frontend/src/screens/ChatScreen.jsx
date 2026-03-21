@@ -5,9 +5,10 @@
  * the AI agent — both text messages and call records.
  *
  * ─── Data ─────────────────────────────────────────────────────────────────────
- * Loaded via: getMessages()   → src/api/services/messages.js
- * Sent via:   sendMessage()   → src/api/services/messages.js
- * Real-time:  subscribeToMessages() — agent replies arrive without polling
+ * Messages come from MessagesContext (src/context/MessagesContext.jsx).
+ * The context owns loading, the message list, and the addMessage function.
+ * Both this screen and VoiceButton share the same context instance, so a
+ * voice-sent message appears here instantly with no event bus needed.
  *
  * ─── API calls made ───────────────────────────────────────────────────────────
  * GET  /rest/v1/messages?user_id=eq.{id}&select=*,calls(*)&order=created_at.asc
@@ -16,8 +17,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { Phone, Send } from 'lucide-react'
-import { getMessages, sendMessage, subscribeToMessages } from '../api/services/messages'
-import { on } from '../utils/messageBus'
+import { useMessages } from '../context/MessagesContext'
 
 // ─── Call status display config ───────────────────────────────────────────────
 // Maps user_status from the calls table to a badge label + colours.
@@ -158,40 +158,13 @@ function MessageSkeleton() {
 // ─── ChatScreen ───────────────────────────────────────────────────────────────
 
 export default function ChatScreen() {
-  // messages: Message[] — full conversation history, oldest first
-  const [messages, setMessages] = useState([])
-  const [loading, setLoading]   = useState(true)
-  const [input, setInput]       = useState('')
-  const [sending, setSending]   = useState(false)
+  // messages + loading come from MessagesContext — shared with VoiceButton.
+  // addMessage sends to the API and appends to the shared list.
+  const { messages, loading, addMessage } = useMessages()
+
+  const [input, setInput]     = useState('')
+  const [sending, setSending] = useState(false)
   const bottomRef = useRef(null)
-
-  // ── Load message history on mount ──────────────────────────────────────────
-  // API: GET /rest/v1/messages?user_id=eq.{id}&select=*,calls(*)&order=created_at.asc
-  useEffect(() => {
-    getMessages()
-      .then(({ messages }) => setMessages(messages))
-      .finally(() => setLoading(false))
-  }, [])
-
-  // ── Subscribe to new messages (agent replies, call records) ────────────────
-  // API: Supabase Realtime — postgres_changes on messages table
-  useEffect(() => {
-    const unsubscribe = subscribeToMessages((newMessage) => {
-      setMessages((prev) => [...prev, newMessage])
-    })
-    return unsubscribe
-  }, [])
-
-  // ── Listen for messages sent via the VoiceButton ────────────────────────────
-  // VoiceButton lives outside ChatScreen in App.jsx (so it's visible on every
-  // screen). When the user sends a voice message it calls emit('voiceMessage')
-  // on the shared messageBus module. The unsubscribe fn returned by on() is
-  // used as the useEffect cleanup so we never leak listeners.
-  // When a real backend is in place, remove this block — Supabase Realtime
-  // will push the user's sent message back via the postgres_changes subscription.
-  useEffect(() => on('voiceMessage', (msg) => {
-    setMessages((prev) => [...prev, msg])
-  }), [])
 
   // ── Scroll to bottom whenever messages change ───────────────────────────────
   useEffect(() => {
@@ -200,14 +173,14 @@ export default function ChatScreen() {
 
   // ── Send a user message ─────────────────────────────────────────────────────
   // API: POST /rest/v1/messages { type:'user', kind:'text', text }
+  // addMessage() handles both the API call and updating the shared message list.
   const handleSend = async () => {
     const text = input.trim()
     if (!text || sending) return
     setInput('')
     setSending(true)
     try {
-      const { message } = await sendMessage(text)
-      setMessages((prev) => [...prev, message])
+      await addMessage(text)
     } finally {
       setSending(false)
     }
@@ -283,8 +256,8 @@ export default function ChatScreen() {
       {/* ── Input bar ──────────────────────────────────────────────────────── */}
       {/*
         On send:    POST /rest/v1/messages { type:'user', kind:'text', text }
-        Voice text: same endpoint — the VoiceButton component calls sendMessage()
-                    directly from src/api/services/messages.js
+        Voice text: VoiceButton calls addMessage() from the same MessagesContext,
+                    so sent voice messages appear here automatically.
       */}
       <div className="shrink-0 border-t px-4 py-3 pb-8" style={{ background: '#F5EFE3', borderColor: '#D0BFA5' }}>
         <div

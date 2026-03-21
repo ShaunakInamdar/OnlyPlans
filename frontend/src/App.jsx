@@ -4,6 +4,7 @@ import ChatScreen from './screens/ChatScreen'
 import TasksScreen from './screens/TasksScreen'
 import GamificationScreen from './screens/GamificationScreen'
 import VoiceButton from './components/VoiceButton'
+import { MessagesProvider } from './context/MessagesContext'
 
 // Swipe left  → Tasks
 // Center      → Chat
@@ -40,6 +41,10 @@ export default function App() {
   const screen = SCREENS[screenIndex]
 
   return (
+    // MessagesProvider owns the message list + addMessage function.
+    // Both ChatScreen (displays messages) and VoiceButton (sends messages)
+    // consume it via useMessages() — no prop drilling, no event bus needed.
+    <MessagesProvider>
     <div
       className="relative w-full h-dvh overflow-hidden select-none"
       style={{ background: '#F9F4E8' }}
@@ -84,5 +89,6 @@ export default function App() {
 
       <VoiceButton />
     </div>
+    </MessagesProvider>
   )
 }

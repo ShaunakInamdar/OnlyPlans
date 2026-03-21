@@ -22,10 +22,14 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Mic, MicOff, X } from 'lucide-react'
-import { sendMessage } from '../api/services/messages'
-import { emit } from '../utils/messageBus'
+import { useMessages } from '../context/MessagesContext'
 
 export default function VoiceButton() {
+  // addMessage from context — same function ChatScreen uses for typed messages.
+  // Calling it here means the sent message appears in ChatScreen instantly,
+  // because both share the same React state via MessagesContext.
+  const { addMessage } = useMessages()
+
   const [listening,   setListening]   = useState(false)
   const [transcript,  setTranscript]  = useState('')
   const [supported,   setSupported]   = useState(false)
@@ -69,11 +73,9 @@ export default function VoiceButton() {
   // ── Send the transcribed text ───────────────────────────────────────────────
   // API: POST /rest/v1/messages  { type: 'user', kind: 'text', text: transcript }
   //
-  // After a successful send we fire a DOM CustomEvent ('voiceMessage') so that
-  // ChatScreen can append the message to its local state without needing a
-  // prop-drilling chain or a global store.
-  // When the real backend is connected, this event still works — ChatScreen will
-  // receive it and the Supabase Realtime subscription will handle the agent reply.
+  // addMessage() comes from MessagesContext — the same shared state that
+  // ChatScreen reads. Calling it here is all that's needed for the message
+  // to appear in the chat list. No events, no bus, no prop drilling.
   const handleSend = async () => {
     const text = transcript.trim()
     if (!text) return
@@ -81,12 +83,8 @@ export default function VoiceButton() {
     setSending(true)
     setListening(false)
     try {
-      const { message } = await sendMessage(text)
+      await addMessage(text)
       setTranscript('')
-      // Notify ChatScreen via the shared module-level message bus.
-      // More reliable than window events — same JS module instance,
-      // no serialisation, no timing races with React mount order.
-      emit('voiceMessage', message)
     } finally {
       setSending(false)
     }
