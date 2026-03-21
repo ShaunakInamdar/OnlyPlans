@@ -1,2 +1,6 @@
 .DS_Store
 .claude/
+.env.local
+.env
+Skills/telnyx-voice-agent/node_modules/
+VPS/.env

@@ -1,0 +1,19 @@
+{
+  "name": "onlyplans-telnyx-voice-agent",
+  "version": "1.0.0",
+  "description": "Telnyx voice agent for Only Plans onboarding — runs the onboarding script as an outbound AI phone call.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.27.0",
+    "axios": "^1.7.0",
+    "dotenv": "^16.4.0",
+    "express": "^4.19.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}

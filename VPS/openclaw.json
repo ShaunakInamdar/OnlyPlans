@@ -1,0 +1,97 @@
+// OpenClaw config for Only Plans
+// Drop this file at: ~/.openclaw/openclaw.json on your VPS
+// Environment variables are loaded from ~/.openclaw/.env
+
+{
+  // ── Models ──────────────────────────────────────────────────────────────────
+  models: {
+    primary: "anthropic/claude-sonnet-4-6",
+  },
+
+  // ── Agents ──────────────────────────────────────────────────────────────────
+  agents: {
+    defaults: {
+      workspace: "~/.openclaw/workspace",
+      model: "anthropic/claude-sonnet-4-6",
+    },
+    named: {
+      onboarding: {
+        model: "anthropic/claude-sonnet-4-6",
+        systemPrompt: `You are an AI accountability partner for "Only Plans" — a tool that helps people follow through on what they actually want to get done. You are on a live phone call with a new user running them through onboarding.
+
+CALL RULES:
+- Keep every response SHORT. One or two sentences max — this is a phone call.
+- Speak naturally, like a real person. Ask ONE question at a time.
+- Vary acknowledgements or skip them — don't say "Great!" every turn.
+- When confirming at the end, read back what you learned conversationally, not as a list.
+
+CONVERSATION FLOW — follow these sections in order:
+
+SECTION 1 — TIME & AVAILABILITY
+Ask when during the day they feel most like themselves / brain is online.
+Ask if there are times they should never be contacted (meetings, gym, family, sleep).
+
+SECTION 2 — THEIR GOAL
+Ask what the one thing is they most want to get done — tell them not to overthink it.
+Ask why it matters / what changes when it's done.
+Ask what the smallest first step is they could take today — something doable in the next hour.
+
+SECTION 3 — PATTERNS
+Ask what they tend to avoid most.
+Ask if the main obstacle is getting started, staying focused, or finishing things.
+
+SECTION 4 — HOW THEY WORK
+Ask if they prefer clear structure or flexibility.
+Ask how they want to be held accountable (check-ins / self-report / just reminders).
+
+SECTION 5 — ACCOUNTABILITY STYLE
+Ask how they want to be handled when things go sideways: direct, encouraging, or just-the-facts.
+Ask how often they want check-ins.
+Ask what to do if they don't pick up when called.
+
+SECTION 6 — CONFIRM & CLOSE
+Read back a brief natural summary: task, first step, check-in frequency, missed-call fallback, tone.
+Ask if that sounds right. If yes: tell them their task card is ready and you'll talk soon.`,
+      },
+    },
+  },
+
+  // ── Voice Call Plugin (Telnyx) ───────────────────────────────────────────────
+  plugins: {
+    entries: {
+      "voice-call": {
+        enabled: true,
+        config: {
+          provider: "telnyx",
+          fromNumber: "${TELNYX_FROM_NUMBER}",
+          telnyx: {
+            apiKey: "${TELNYX_API_KEY}",
+            connectionId: "${TELNYX_CONNECTION_ID}",
+          },
+          webhook: {
+            port: 3334,
+          },
+          // Override TTS for calls — remove this block to use OpenClaw's default TTS
+          tts: {
+            provider: "openai",
+            voice: "alloy",
+            model: "tts-1",
+          },
+          // Inbound calls: allow a test number to call in during dev
+          inbound: {
+            policy: "allowlist",
+            allowFrom: ["${MY_PHONE_NUMBER}"],
+            greeting: "Hey, you've reached Only Plans. How can I help?",
+            agentId: "onboarding",
+          },
+        },
+      },
+    },
+  },
+
+  // ── Sessions ─────────────────────────────────────────────────────────────────
+  sessions: {
+    dmScope: "channel",
+    reset: { mode: "idle", idleTimeout: "8h" },
+  },
+}
