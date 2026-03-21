@@ -181,6 +181,21 @@ export default function ChatScreen() {
     return unsubscribe
   }, [])
 
+  // ── Listen for messages sent via the VoiceButton ────────────────────────────
+  // VoiceButton lives outside ChatScreen in App.jsx (so it's visible on every
+  // screen). When the user sends a voice message it fires a DOM CustomEvent
+  // 'voiceMessage' with the new Message object in event.detail.
+  // This handler appends it to the local list — same as typing and sending.
+  // When a real backend is in place this still works: Supabase Realtime will
+  // push the agent reply; this handler covers the user's own sent message.
+  useEffect(() => {
+    const handleVoiceMessage = (e) => {
+      setMessages((prev) => [...prev, e.detail])
+    }
+    window.addEventListener('voiceMessage', handleVoiceMessage)
+    return () => window.removeEventListener('voiceMessage', handleVoiceMessage)
+  }, [])
+
   // ── Scroll to bottom whenever messages change ───────────────────────────────
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })

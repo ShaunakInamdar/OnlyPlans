@@ -67,6 +67,12 @@ export default function VoiceButton() {
 
   // ── Send the transcribed text ───────────────────────────────────────────────
   // API: POST /rest/v1/messages  { type: 'user', kind: 'text', text: transcript }
+  //
+  // After a successful send we fire a DOM CustomEvent ('voiceMessage') so that
+  // ChatScreen can append the message to its local state without needing a
+  // prop-drilling chain or a global store.
+  // When the real backend is connected, this event still works — ChatScreen will
+  // receive it and the Supabase Realtime subscription will handle the agent reply.
   const handleSend = async () => {
     const text = transcript.trim()
     if (!text) return
@@ -74,8 +80,10 @@ export default function VoiceButton() {
     setSending(true)
     setListening(false)
     try {
-      await sendMessage(text)
+      const { message } = await sendMessage(text)
       setTranscript('')
+      // Broadcast the new message so ChatScreen can add it to its list
+      window.dispatchEvent(new CustomEvent('voiceMessage', { detail: message }))
     } finally {
       setSending(false)
     }
@@ -92,9 +100,11 @@ export default function VoiceButton() {
 
   return (
     <>
-      {/* Transcript overlay — shown while listening or after transcript captured */}
+      {/* Transcript overlay — shown while listening OR while a transcript exists.
+          Keeping it visible after recording stops lets the user review the text
+          and tap Send without racing against the overlay disappearing. */}
       <AnimatePresence>
-        {listening && (
+        {(listening || transcript) && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -104,7 +114,9 @@ export default function VoiceButton() {
           >
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1">
-                <p className="text-xs font-medium mb-1" style={{ color: '#B12A42' }}>Listening…</p>
+                <p className="text-xs font-medium mb-1" style={{ color: '#B12A42' }}>
+                  {listening ? 'Listening…' : 'Review & send'}
+                </p>
                 {/* Live transcript — updated as user speaks via rec.onresult */}
                 <p className="text-sm min-h-[40px]" style={{ color: '#1A1A1A' }}>
                   {transcript || <span style={{ color: '#6B7A7F' }}>Start speaking…</span>}
