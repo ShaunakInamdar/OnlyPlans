@@ -93,17 +93,16 @@ After onboarding, the agent holds the full user profile plus a precise first tas
 
 ## Agent Goal
 
-The agent treats the first task as its own objective — not just something to track, but something it is actively trying to make happen. The agent's goal is:
+The agent treats the first task as its own objective — not just something to track, but something it is actively trying to define together with the user. The agent's goal in the opening call is:
 
-> **Get the user to complete their first task within the agreed timeframe.**
+> **Gather enough detail about the first task to make it actionable.**
 
-This means the agent is not passive. It reminds before the task starts, checks in during it, and follows up after. It owns the outcome alongside the user.
+This means the agent doesn't move on until it has a clear task, a timeframe, a reminder window, and any relevant details. It asks follow-up questions until the picture is complete — then locks it in and confirms back to the user.
 
 | Field | Example |
 |---|---|
-| `agent_goal` | User completes: "Write the About page" |
-| `success_condition` | User confirms task done within the timeframe |
-| `check_in_before` | 8:45am — reminder call/text to prepare |
-| `check_in_during` | 10am — mid-session check-in |
-| `check_in_after` | 11am — did you finish? what's left? |
-| `fallback_if_missed` | Reschedule or break into smaller step |
+| `agent_goal` | Fully define: "Write the About page" |
+| `success_condition` | Task, timeframe, reminder, and details are all confirmed by the user |
+| `if_too_vague` | Ask follow-up questions to narrow it down |
+| `if_too_large` | Suggest breaking it into a smaller first step |
+| `confirm_at_end` | Read the full task card back and get a yes |
