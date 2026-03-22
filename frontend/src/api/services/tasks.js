@@ -75,9 +75,11 @@ export async function getTasks() {
     return { tasks: getMockTasks() }
   }
 
-  return apiFetch(
-    '/rest/v1/tasks?user_id=eq.me&select=*,subtasks(*)&order=due_order.asc,created_at.asc'
+  // No user_id filter needed — RLS enforces user_id = auth.uid() automatically
+  const rows = await apiFetch(
+    '/rest/v1/tasks?select=*,subtasks(*)&order=due_order.asc,created_at.asc'
   )
+  return { tasks: rows }
 }
 
 // ─── updateTask ───────────────────────────────────────────────────────────────
@@ -103,10 +105,12 @@ export async function updateTask(taskId, updates) {
     return { task }
   }
 
-  return apiFetch(`/rest/v1/tasks?id=eq.${taskId}`, {
+  const rows = await apiFetch(`/rest/v1/tasks?id=eq.${taskId}`, {
     method: 'PATCH',
+    headers: { Prefer: 'return=representation' },
     body: JSON.stringify(updates),
   })
+  return { task: Array.isArray(rows) ? rows[0] : rows }
 }
 
 // ─── toggleSubtask ────────────────────────────────────────────────────────────
